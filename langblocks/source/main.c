@@ -999,10 +999,33 @@ static void handleMenu(void)
 
 /* -------------------------------------------------------------------- main */
 
+/* Painted before the sound engine and, more importantly, before libfat is
+ * initialised.  fatInitDefault() probes the card slot and can take a while (or
+ * never return if the loader wedges), so the screens must already be lit and
+ * showing something first: a failure there then leaves a visible boot screen
+ * instead of a misleading black one. */
+static void drawBootScreen(void)
+{
+    surfClear(&gfxTop, COL_BG);
+    surfTextCentered(&gfxTop, 128, 56, "LINGUABLOCKS", COL_GOLD, 2);
+    surfTextCentered(&gfxTop, 128, 84, "Spanish + French drills", COL_TEXT, 1);
+    surfTextCentered(&gfxTop, 128, 100, "with a Tetris reward", COL_TEXT_DIM, 1);
+
+    surfClear(&gfxBottom, COL_BG);
+    surfTextCentered(&gfxBottom, 128, 88, "STARTING UP", COL_GOLD, 1);
+    surfTextCentered(&gfxBottom, 128, 106, "checking SD card...", COL_TEXT_DIM,
+                     1);
+}
+
 int main(void)
 {
-    gfxInit();
-    sndInit();
+    gfxInit();           /* VRAM banks, mode 5 and both bitmap layers */
+
+    /* Put a frame on screen before anything that can block. */
+    drawBootScreen();
+    gfxPresent();        /* draws, then waits for vblank */
+
+    sndInit();           /* synthesises the effects, then soundEnable() */
 
     saveInit();          /* mounts the SD card and loads the profile */
     saveNewSession();    /* streak bookkeeping for this play session    */

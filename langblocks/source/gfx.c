@@ -21,17 +21,31 @@ void gfxInit(void)
 {
 #ifndef HOST_TEST
     /* Bank A feeds the main engine's background, bank C the sub engine's.  In
-     * 16bpp bitmap mode a full screen needs 96 KiB, which is exactly one bank,
-     * so a single mapping is enough. */
+     * 16bpp bitmap mode a 256x192 screen needs 96 KiB, so one bank each is
+     * enough.  The banks must be mapped before bgInit() touches the layer. */
     vramSetBankA(VRAM_A_MAIN_BG);
     vramSetBankC(VRAM_C_SUB_BG);
 
-    /* Mode 5 = 256x192 16-bit bitmap on BG2, for both engines. */
-    videoSetMode(MODE_5_2D);
-    videoSetModeSub(MODE_5_2D);
+    /* Mode 5 = two extended-rotation layers per engine.  Setting the mode is
+     * not enough to show anything:
+     *   - no background is enabled by the mode value alone, so BG3 would stay
+     *     off and the screen would remain black;
+     *   - BG3 is an affine layer, and its matrix resets to 0, which scales the
+     *     whole bitmap to a single point.
+     * bgInit()/bgInitSub() program BG3CNT and set the 1:1 matrix, and bgShow()
+     * switches the layer on.  This is the sequence the libnds bitmap example
+     * uses, and without it the DS and melonDS both show a black screen. */
+    videoSetMode(MODE_5_2D | DISPLAY_BG3_ACTIVE);
+    videoSetModeSub(MODE_5_2D | DISPLAY_BG3_ACTIVE);
 
-    gfxTop.fb = BG_GFX;
-    gfxBottom.fb = BG_GFX_SUB;
+    int mainBg = bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+    int subBg  = bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+    bgShow(mainBg);
+    bgShow(subBg);
+
+    /* mapBase 0 puts both bitmaps at the start of their VRAM bank. */
+    gfxTop.fb = (u16 *)bgGetGfxPtr(mainBg);
+    gfxBottom.fb = (u16 *)bgGetGfxPtr(subBg);
 #else
     gfxTop.fb = hostTop;
     gfxBottom.fb = hostBottom;

@@ -124,10 +124,14 @@ void saveInit(void)
     sPath[0] = '\0';
 
 #ifndef HOST_TEST
-    /* A list of possible mount points; the first writable one wins. */
-    static const char *devices[] = { "sd:/", "fat:/", "sdmc:/", "0:/" };
+    /* "sd:/" is the DSi SD slot, "fat:/" the DLDI device of a DS flashcard.
+     * Both are tried; if neither can be opened the game still runs, it just
+     * does not persist progress. */
+    static const char *devices[] = { "sd:/", "fat:/" };
     static const char *filename = "langblocks.sav";
 
+    /* fatInitDefault() returns false when no card is mounted.  It is safe to
+     * continue in that case: every file below simply fails to open. */
     if (fatInitDefault()) {
         for (unsigned int i = 0; i < sizeof(devices) / sizeof(devices[0]); i++) {
             char candidate[64];
@@ -136,13 +140,13 @@ void saveInit(void)
             /* Opening for append creates the file if the device is writable,
              * which is a harmless way to test the mount. */
             FILE *f = fopen(candidate, "ab");
-            if (f) {
-                fclose(f);
-                strncpy(sPath, candidate, sizeof(sPath) - 1);
-                sPath[sizeof(sPath) - 1] = '\0';
-                sAvailable = 1;
-                break;
-            }
+            if (!f) continue;
+
+            fclose(f);
+            strncpy(sPath, candidate, sizeof(sPath) - 1);
+            sPath[sizeof(sPath) - 1] = '\0';
+            sAvailable = 1;
+            break;
         }
     }
 #endif
