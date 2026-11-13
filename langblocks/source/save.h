@@ -47,7 +47,8 @@ typedef struct {
 
 extern SaveData save;
 
-/* Mount the SD card, find a writable path and load the profile. */
+/* Initialise the profile.  With SAVE_TO_SD disabled in save.c this only
+ * applies defaults; the profile then lives in RAM for the session. */
 void saveInit(void);
 
 /* 1 if a writable device was found.  The menu shows this state to the user. */

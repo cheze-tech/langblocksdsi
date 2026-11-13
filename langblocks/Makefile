@@ -40,7 +40,7 @@ NITRO    :=
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH := -march=armv5te -mtune=arm946e-s
+ARCH := -march=armv5te -mtune=arm946e-s -mthumb
 
 CFLAGS   := -g -Wall -O2 -ffunction-sections -fdata-sections\
             $(ARCH) $(INCLUDE) -DARM9
@@ -51,13 +51,12 @@ LDFLAGS   = -specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
 #---------------------------------------------------------------------------------
-# libfat lives in libnds/lib and provides fatInitDefault() for SD card access.
-LIBS := -lfat -lnds9
-
-# automatigically add libraries for NitroFS
-ifneq ($(strip $(NITRO)),)
-LIBS := -lfilesystem -lfat $(LIBS)
-endif
+# Boot isolation: libfat is deliberately NOT linked.  Binding it pulled a
+# 16 KB .dldi section into the ARM9 image at an ARM7 WRAM address
+# (0x03808000), which the stock libnds hello_world ROM does not contain, and
+# it is the first thing that differs from a known-good build.  Saves are kept
+# in RAM for now (see save.c).
+LIBS := -lnds9
 # automagically add maxmod library
 ifneq ($(strip $(AUDIO)),)
 LIBS := -lmm9 $(LIBS)

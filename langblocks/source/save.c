@@ -14,8 +14,13 @@
 #include "quiz.h"
 #include "save.h"
 
-#ifndef HOST_TEST
-#include <fat.h>        /* fatInitDefault() from libfat */
+/* Boot isolation switch: 0 keeps the profile in RAM only and never calls
+ * libfat.  The Makefile also stops linking -lfat, so the ROM no longer gets
+ * the 16 KB .dldi section that the known-good hello_world build lacks. */
+#define SAVE_TO_SD 0
+
+#if SAVE_TO_SD && !defined(HOST_TEST)
+#include <fat.h>
 #endif
 
 SaveData save;
@@ -26,6 +31,7 @@ static int sDirty;
 
 /* ------------------------------------------------------------------ misc */
 
+#if SAVE_TO_SD
 static u16 calcChecksum(const SaveData *d)
 {
     const u8 *p = (const u8 *)d;
@@ -39,6 +45,7 @@ static u16 calcChecksum(const SaveData *d)
     }
     return sum;
 }
+#endif
 
 void saveDefaults(void)
 {
@@ -56,6 +63,7 @@ const char *savePath(void) { return sPath; }
 
 /* --------------------------------------------------------------- load/save */
 
+#if SAVE_TO_SD
 static void loadFile(void)
 {
     FILE *f = fopen(sPath, "rb");
@@ -80,9 +88,15 @@ static void loadFile(void)
     save.drillMask &= QK_MASK_ALL;
     if (save.drillMask == 0) save.drillMask = QK_MASK_ALL;
 }
+#endif
 
 void saveNow(void)
 {
+#if !SAVE_TO_SD
+    /* RAM-only build: nothing to flush. */
+    sDirty = 0;
+    return;
+#else
     if (!sAvailable) {
         sDirty = 0;
         return;
@@ -113,6 +127,7 @@ void saveNow(void)
         return;
     }
     sDirty = 0;
+#endif
 }
 
 /* ------------------------------------------------------------------ setup */
@@ -123,15 +138,13 @@ void saveInit(void)
     sAvailable = 0;
     sPath[0] = '\0';
 
-#ifndef HOST_TEST
+#if SAVE_TO_SD && !defined(HOST_TEST)
     /* "sd:/" is the DSi SD slot, "fat:/" the DLDI device of a DS flashcard.
      * Both are tried; if neither can be opened the game still runs, it just
      * does not persist progress. */
     static const char *devices[] = { "sd:/", "fat:/" };
     static const char *filename = "langblocks.sav";
 
-    /* fatInitDefault() returns false when no card is mounted.  It is safe to
-     * continue in that case: every file below simply fails to open. */
     if (fatInitDefault()) {
         for (unsigned int i = 0; i < sizeof(devices) / sizeof(devices[0]); i++) {
             char candidate[64];
@@ -149,9 +162,9 @@ void saveInit(void)
             break;
         }
     }
-#endif
 
     if (sAvailable) loadFile();
+#endif
 }
 
 void saveNewSession(void)

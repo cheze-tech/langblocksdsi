@@ -54,12 +54,9 @@ void gfxInit(void)
 
 void gfxPresent(void)
 {
-#ifndef HOST_TEST
-    /* Drawing goes straight to VRAM.  Waiting for vblank here paces the whole
-     * app at 60 fps and makes sure the frame we just finished is on screen
-     * before we start overwriting it. */
-    swiWaitForVBlank();
-#endif
+    /* Drawing goes straight to VRAM; the main loop calls swiWaitForVBlank()
+     * as its first action, so there is nothing to flush here.  Keeping this
+     * as a separate hook makes the frame boundary explicit. */
 }
 
 /* ------------------------------------------------------------------ pixels */

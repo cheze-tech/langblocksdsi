@@ -1023,12 +1023,14 @@ int main(void)
 
     /* Put a frame on screen before anything that can block. */
     drawBootScreen();
-    gfxPresent();        /* draws, then waits for vblank */
+    gfxPresent();
+    swiWaitForVBlank();  /* let that first frame reach the LCDs */
 
-    sndInit();           /* synthesises the effects, then soundEnable() */
-
-    saveInit();          /* mounts the SD card and loads the profile */
-    saveNewSession();    /* streak bookkeeping for this play session    */
+    /* Boot isolation: no libfat, no ARM7 sound hardware, no SD access.  The
+     * profile lives in RAM this build so a missing/odd card cannot stall the
+     * first frame.  Restore saveInit()/sndInit() once the screen is proven. */
+    saveDefaults();
+    saveNewSession();    /* streak bookkeeping for this play session */
 
     lang = (Lang)(save.lang < LANG_COUNT ? save.lang : 0);
     quizKinds = save.drillMask ? save.drillMask : QK_MASK_ALL;
@@ -1038,7 +1040,10 @@ int main(void)
     state = ST_MENU;
     screenDirty = 1;
 
-    while (1) {
+    while (pmMainLoop()) {
+        /* Frame boundary is the first thing in the loop: the ARM9 must yield
+         * to vblank before doing any work for the next frame. */
+        swiWaitForVBlank();
         pollInput();
 
         if (toastFrames > 0) toastFrames--;
