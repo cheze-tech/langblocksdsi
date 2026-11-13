@@ -1,0 +1,5 @@
+# devkitARM build output -- rebuilt with `make`
+build/
+*.elf
+*.nds
+*.map
